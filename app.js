@@ -1,40 +1,44 @@
-var rendition;
-var book;
-
-document.getElementById("input").addEventListener("change", function(e){
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Status-Update für dich
-    console.log("Lade Datei: " + file.name);
+// Dieser Teil wartet, bis die Seite komplett geladen ist
+window.onload = function() {
+    if (typeof ePub === 'undefined') {
+        document.getElementById("status").innerText = "Fehler: epub.js nicht geladen. Seite neu laden!";
+        return;
+    }
     
-    const reader = new FileReader();
-    reader.onload = function(event){
-        try {
-            if (rendition) rendition.destroy();
+    var rendition;
+    var book;
+    const status = document.getElementById("status");
+    const input = document.getElementById("input");
 
-            // Wir laden das Buch aus dem Speicher (ArrayBuffer)
-            book = ePub(event.target.result);
-            
-            rendition = book.renderTo("viewer", {
-                width: "100%",
-                height: "100%",
-                flow: "paginated",
-                manager: "default"
-            });
+    input.addEventListener("change", function(e){
+        const file = e.target.files[0];
+        if (!file) return;
 
-            // WICHTIG: Erzwinge schwarze Schrift, falls Dark Mode stört
-            rendition.display().then(() => {
-                rendition.themes.default({ "body": { "color": "#000000 !important" }});
-                console.log("Anzeige bereit");
-            });
+        status.innerText = "Lade " + file.name + "...";
+        
+        const reader = new FileReader();
+        reader.onload = function(event){
+            try {
+                if (rendition) rendition.destroy();
 
-        } catch (err) {
-            alert("Fehler: " + err.message);
-        }
-    };
-    reader.readAsArrayBuffer(file);
-});
+                book = ePub(event.target.result);
+                rendition = book.renderTo("viewer", {
+                    width: "100%",
+                    height: "100%",
+                    flow: "paginated"
+                });
 
-document.getElementById("next").addEventListener("click", () => rendition && rendition.next());
-document.getElementById("prev").addEventListener("click", () => rendition && rendition.prev());
+                rendition.display().then(() => {
+                    status.style.display = 'none';
+                });
+
+            } catch (err) {
+                status.innerText = "Fehler: " + err.message;
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    document.getElementById("next").addEventListener("click", () => rendition && rendition.next());
+    document.getElementById("prev").addEventListener("click", () => rendition && rendition.prev());
+};
