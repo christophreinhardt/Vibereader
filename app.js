@@ -1,55 +1,72 @@
 window.onload = function() {
+    const status = document.getElementById("status");
+    const placeholder = document.getElementById("placeholder");
+
     if (typeof ePub === 'undefined') {
-        document.getElementById("status").innerText = "Fehler: epub.js fehlt!";
+        status.innerText = "KRITISCH: Bibliothek fehlt!";
         return;
     }
-    
-    var rendition;
-    var book;
-    const status = document.getElementById("status");
-    const input = document.getElementById("input");
 
-    input.addEventListener("change", function(e){
+    var book;
+    var rendition;
+
+    document.getElementById("input").addEventListener("change", function(e) {
         const file = e.target.files[0];
         if (!file) return;
 
-        status.innerText = "Analysiere Buch...";
-        
+        status.innerText = "Lese Datei...";
+        placeholder.style.display = "none";
+
         const reader = new FileReader();
-        reader.onload = function(event){
-            book = ePub(event.target.result);
-            
-            rendition = book.renderTo("viewer", {
-                width: "100%",
-                height: "100%",
-                flow: "paginated"
-            });
-
-            rendition.display();
-
-            // --- NEU: Zeichen zählen & Lesezeit schätzen ---
-            book.ready.then(() => {
-                // Wir holen uns den gesamten Text aus den Buch-Metadaten/Spine
-                return Promise.all(
-                    book.spine.spineItems.map(item => item.load(book.load.bind(book)))
-                );
-            }).then(sections => {
-                let totalChars = 0;
-                sections.forEach(section => {
-                    // Wir entfernen HTML-Tags, um nur den reinen Text zu zählen
-                    const text = section.innerHTML.replace(/<[^>]*>/g, "");
-                    totalChars += text.length;
+        reader.onload = function(event) {
+            try {
+                const data = event.target.result;
+                book = ePub(data);
+                
+                // Wir nutzen 'iframe' statt 'canvas' - das ist sicherer für iOS
+                rendition = book.renderTo("viewer", {
+                    width: "100%",
+                    height: "100%",
+                    flow: "paginated",
+                    manager: "default",
+                    method: "default"
                 });
 
-                const words = totalChars / 6; // Grobe Schätzung: 6 Zeichen pro Wort
-                const minutes = Math.round(words / 250); // 250 Wörter pro Minute
-                
-                status.style.display = 'block';
-                status.innerHTML = `<b>${totalChars.toLocaleString()}</b> Zeichen | <br>Geschätzte Lesezeit: <b>${minutes} Min.</b>`;
-            });
+                rendition.display().then(() => {
+                    status.innerText = "Buch geladen!";
+                    calculateStats();
+                }).catch(err => {
+                    status.innerText = "Anzeigefehler: " + err.message;
+                });
+
+            } catch (err) {
+                status.innerText = "Fehler: " + err.message;
+            }
         };
         reader.readAsArrayBuffer(file);
     });
+
+    async function calculateStats() {
+        status.innerText = "Berechne Lesezeit...";
+        const spine = await book.ready;
+        let totalChars = 0;
+        
+        // Wir zählen nur die ersten paar Kapitel für den Speed-Vibe
+        const promises = book.spine.spineItems.slice(0, 10).map(item => 
+            item.load(book.load.bind(book)).then(doc => {
+                totalChars += doc.innerText ? doc.innerText.length : 0;
+            })
+        );
+
+        await Promise.all(promises);
+        const estMinutes = Math.round((totalChars * (book.spine.spineItems.length / 10)) / 1200);
+        status.innerText = `Ca. ${estMinutes} Min. Lesezeit | Seite: 1`;
+        
+        // Update Seitenzahl beim Umblättern
+        rendition.on("relocated", (location) => {
+            status.innerText = `Ca. ${estMinutes} Min. | Position: ${location.start.displayed.page}`;
+        });
+    }
 
     document.getElementById("next").addEventListener("click", () => rendition && rendition.next());
     document.getElementById("prev").addEventListener("click", () => rendition && rendition.prev());
