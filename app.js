@@ -2,33 +2,36 @@ var rendition;
 var book;
 
 document.getElementById("input").addEventListener("change", function(e){
-    if (e.target.files.length == 0) return;
-    
-    var file = e.target.files[0];
-    var reader = new FileReader();
-    
-    reader.onload = function(e){
-        var data = e.target.result;
-        
-        // Altes Buch löschen, falls vorhanden
-        if (rendition) rendition.destroy();
-        
-        book = ePub(data);
-        rendition = book.renderTo("viewer", {
-            width: "100%",
-            height: "100%",
-            flow: "paginated",
-            manager: "default"
-        });
+    const file = e.target.files[0];
+    if (!file) return;
 
-        var display = rendition.display();
-        
-        display.then(() => {
-            console.log("Buch erfolgreich geladen!");
-        }).catch(err => {
-            console.error("Fehler beim Anzeigen:", err);
-            alert("Fehler beim Laden der Buchseiten.");
-        });
+    // Status-Update für dich
+    console.log("Lade Datei: " + file.name);
+    
+    const reader = new FileReader();
+    reader.onload = function(event){
+        try {
+            if (rendition) rendition.destroy();
+
+            // Wir laden das Buch aus dem Speicher (ArrayBuffer)
+            book = ePub(event.target.result);
+            
+            rendition = book.renderTo("viewer", {
+                width: "100%",
+                height: "100%",
+                flow: "paginated",
+                manager: "default"
+            });
+
+            // WICHTIG: Erzwinge schwarze Schrift, falls Dark Mode stört
+            rendition.display().then(() => {
+                rendition.themes.default({ "body": { "color": "#000000 !important" }});
+                console.log("Anzeige bereit");
+            });
+
+        } catch (err) {
+            alert("Fehler: " + err.message);
+        }
     };
     reader.readAsArrayBuffer(file);
 });
