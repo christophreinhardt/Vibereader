@@ -4,21 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Mein Vibe Reader</title>
+    <title>Vibe Reader</title>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
 </head>
 <body>
-    <div id="viewer"></div>
+    <div id="viewer" style="border: 1px solid #ccc; min-height: 300px;">
+        <p id="placeholder" style="text-align:center; margin-top:100px; color:#aaa;">Kein Buch geladen</p>
+    </div>
+    <div id="status">Bereit...</div>
     <div id="controls">
         <button id="prev"> Zurück </button>
         <input type="file" id="input" accept=".epub">
         <button id="next"> Vor </button>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
-
-<script src="app.js"></script>
-
+    <script src="app.js"></script>
 </body>
 </html>
