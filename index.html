@@ -5,24 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Vibe Reader</title>
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
-    
+
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-    <div id="viewer" style="border: 1px solid #ccc; min-height: 300px;">
-        <p id="placeholder" style="text-align:center; margin-top:100px; color:#aaa;">Kein Buch geladen</p>
+    <header class="topbar">
+        <div class="app-title">Vibe Reader</div>
+        <label for="input" class="upload-btn" title="EPUB laden">Buch laden</label>
+        <input type="file" id="input" accept=".epub" hidden>
+    </header>
+
+    <div id="viewer" aria-live="polite">
+        <p id="placeholder">Kein Buch geladen – wähle eine EPUB-Datei.</p>
     </div>
-    <div id="status">Bereit...</div>
-    <div id="controls">
-        <button id="prev"> Zurück </button>
-        <input type="file" id="input" accept=".epub">
-        <button id="next"> Vor </button>
-    </div>
+
+    <div id="status" role="status">Bereit…</div>
+
+    <footer id="controls">
+        <button id="prev" aria-label="Vorherige Seite">← Zurück</button>
+        <button id="toc" aria-label="Inhaltsverzeichnis">Kapitel</button>
+        <button id="next" aria-label="Nächste Seite">Weiter →</button>
+    </footer>
+
     <script src="app.js"></script>
 </body>
 </html>

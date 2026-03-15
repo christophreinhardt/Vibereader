@@ -1,33 +1,106 @@
+:root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --text: #202329;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-soft: #dbeafe;
+    --border: #e5e7eb;
+}
+
+* {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: #ffffff;
-    height: 100vh;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+}
+
+.app-title {
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+.upload-btn {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
 #viewer {
     flex: 1;
-    width: 100%;
-    margin-top: env(safe-area-inset-top); /* Schützt den Notchbereich */
+    width: min(100%, 920px);
+    margin: 10px auto;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    background: var(--panel);
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+    touch-action: manipulation;
+    transition: filter 120ms ease-out;
+}
+
+#placeholder {
+    text-align: center;
+    margin: 120px 16px;
+    color: var(--muted);
+}
+
+#status {
+    width: min(100%, 920px);
+    margin: 0 auto;
+    padding: 6px 12px;
+    color: var(--muted);
+    font-size: 14px;
 }
 
 #controls {
-    display: flex;
-    justify-content: space-around;
-    padding: 20px;
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid #ddd;
-    padding-bottom: env(safe-area-inset-bottom);
+    width: min(100%, 920px);
+    margin: 8px auto calc(10px + env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
 }
 
 button {
-    background: none;
-    border: none;
-    color: #007AFF; /* iOS Blau */
-    font-size: 18px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
     cursor: pointer;
+    min-height: 42px;
+}
+
+button:hover {
+    border-color: #cbd5e1;
+    background: #fafafa;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
