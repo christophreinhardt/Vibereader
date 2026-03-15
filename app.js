@@ -1,73 +1,207 @@
-window.onload = function() {
+window.onload = function () {
     const status = document.getElementById("status");
     const placeholder = document.getElementById("placeholder");
+    const input = document.getElementById("input");
+    const nextBtn = document.getElementById("next");
+    const prevBtn = document.getElementById("prev");
+    const tocBtn = document.getElementById("toc");
+    const viewer = document.getElementById("viewer");
 
-    if (typeof ePub === 'undefined') {
-        status.innerText = "KRITISCH: Bibliothek fehlt!";
+    if (typeof ePub === "undefined") {
+        status.innerText = "KRITISCH: ePub.js fehlt.";
         return;
     }
 
-    var book;
-    var rendition;
+    let book;
+    let rendition;
+    let estimatedMinutes = 0;
+    let brightnessLevel = 1;
+    let touchStart = null;
 
-    document.getElementById("input").addEventListener("change", function(e) {
-        const file = e.target.files[0];
+    function setStatus(text) {
+        status.innerText = text;
+    }
+
+    function setControlsEnabled(enabled) {
+        nextBtn.disabled = !enabled;
+        prevBtn.disabled = !enabled;
+        tocBtn.disabled = !enabled;
+    }
+
+    function applyBrightness() {
+        viewer.style.filter = `brightness(${brightnessLevel.toFixed(2)})`;
+    }
+
+    function changeBrightness(delta) {
+        const next = Math.min(1.4, Math.max(0.5, brightnessLevel + delta));
+        if (next === brightnessLevel) return;
+
+        brightnessLevel = next;
+        applyBrightness();
+        const percent = Math.round((brightnessLevel / 1.4) * 100);
+        setStatus(`${estimatedMinutes} Min. · Helligkeit ${percent}%`);
+    }
+
+    function goNext() {
+        if (rendition) rendition.next();
+    }
+
+    function goPrev() {
+        if (rendition) rendition.prev();
+    }
+
+    function handleTouchStart(event) {
+        const point = event.changedTouches?.[0];
+        if (!point) return;
+
+        touchStart = {
+            x: point.clientX,
+            y: point.clientY,
+            time: Date.now()
+        };
+    }
+
+    function handleTouchEnd(event) {
+        if (!touchStart || !rendition) return;
+
+        const point = event.changedTouches?.[0];
+        if (!point) return;
+
+        const dx = point.clientX - touchStart.x;
+        const dy = point.clientY - touchStart.y;
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+        const duration = Date.now() - touchStart.time;
+
+        const viewportWidth = window.innerWidth;
+        const leftThird = viewportWidth / 3;
+        const rightThird = (viewportWidth / 3) * 2;
+
+        if (duration < 300 && absDx < 20 && absDy < 20) {
+            if (touchStart.x <= leftThird) {
+                goPrev();
+            } else if (touchStart.x >= rightThird) {
+                goNext();
+            }
+            touchStart = null;
+            return;
+        }
+
+        const isMiddleThird = touchStart.x > leftThird && touchStart.x < rightThird;
+        const isVerticalSwipe = absDy > 40 && absDy > absDx;
+
+        if (isMiddleThird && isVerticalSwipe) {
+            if (dy < 0) {
+                changeBrightness(0.08);
+            } else {
+                changeBrightness(-0.08);
+            }
+        }
+
+        touchStart = null;
+    }
+
+    function bindTouchGesturesToDocument(doc) {
+        doc.addEventListener("touchstart", handleTouchStart, { passive: true });
+        doc.addEventListener("touchend", handleTouchEnd, { passive: true });
+    }
+
+    setControlsEnabled(false);
+    applyBrightness();
+
+    viewer.addEventListener("touchstart", handleTouchStart, { passive: true });
+    viewer.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    input.addEventListener("change", function (event) {
+        const file = event.target.files[0];
         if (!file) return;
 
-        status.innerText = "Lese Datei...";
+        if (book) {
+            book.destroy();
+        }
+
+        setStatus("Lade EPUB …");
         placeholder.style.display = "none";
+        setControlsEnabled(false);
 
         const reader = new FileReader();
-        reader.onload = function(event) {
+        reader.onload = async function (loadEvent) {
             try {
-                const data = event.target.result;
+                const data = loadEvent.target.result;
                 book = ePub(data);
-                
-                // Wir nutzen 'iframe' statt 'canvas' - das ist sicherer für iOS
+
                 rendition = book.renderTo("viewer", {
                     width: "100%",
                     height: "100%",
                     flow: "paginated",
-                    manager: "default",
-                    method: "default"
+                    manager: "default"
                 });
 
-                rendition.display().then(() => {
-                    status.innerText = "Buch geladen!";
-                    calculateStats();
-                }).catch(err => {
-                    status.innerText = "Anzeigefehler: " + err.message;
+                rendition.hooks.content.register((contents) => {
+                    bindTouchGesturesToDocument(contents.document);
                 });
 
-            } catch (err) {
-                status.innerText = "Fehler: " + err.message;
+                await rendition.display();
+                await calculateStats();
+                attachRenditionEvents();
+                setControlsEnabled(true);
+                setStatus(`Buch geladen · ${estimatedMinutes} Min. · Position 0%`);
+            } catch (error) {
+                setStatus(`Fehler beim Laden: ${error.message}`);
             }
         };
+
         reader.readAsArrayBuffer(file);
     });
 
     async function calculateStats() {
-        status.innerText = "Berechne Lesezeit...";
-        const spine = await book.ready;
-        let totalChars = 0;
-        
-        // Wir zählen nur die ersten paar Kapitel für den Speed-Vibe
-        const promises = book.spine.spineItems.slice(0, 10).map(item => 
-            item.load(book.load.bind(book)).then(doc => {
-                totalChars += doc.innerText ? doc.innerText.length : 0;
+        setStatus("Berechne Lesezeit …");
+        const items = book.spine.spineItems;
+        const sample = items.slice(0, Math.min(items.length, 10));
+        let chars = 0;
+
+        await Promise.all(
+            sample.map(async (item) => {
+                const doc = await item.load(book.load.bind(book));
+                chars += (doc?.documentElement?.textContent || "").length;
+                item.unload();
             })
         );
 
-        await Promise.all(promises);
-        const estMinutes = Math.round((totalChars * (book.spine.spineItems.length / 10)) / 1200);
-        status.innerText = `Ca. ${estMinutes} Min. Lesezeit | Seite: 1`;
-        
-        // Update Seitenzahl beim Umblättern
+        const scaledChars = sample.length ? Math.round(chars * (items.length / sample.length)) : 0;
+        estimatedMinutes = Math.max(1, Math.round(scaledChars / 1200));
+    }
+
+    function attachRenditionEvents() {
         rendition.on("relocated", (location) => {
-            status.innerText = `Ca. ${estMinutes} Min. | Position: ${location.start.displayed.page}`;
+            const percentage = Math.round((location?.start?.percentage || 0) * 100);
+            const page = location?.start?.displayed?.page;
+            const total = location?.start?.displayed?.total;
+            const pageInfo = page && total ? `Seite ${page}/${total}` : `Position ${percentage}%`;
+            setStatus(`${estimatedMinutes} Min. · ${pageInfo}`);
         });
     }
 
-    document.getElementById("next").addEventListener("click", () => rendition && rendition.next());
-    document.getElementById("prev").addEventListener("click", () => rendition && rendition.prev());
+    tocBtn.addEventListener("click", async () => {
+        if (!book || !rendition) return;
+
+        const toc = await book.loaded.navigation;
+        if (!toc?.toc?.length) {
+            setStatus("Kein Inhaltsverzeichnis verfügbar.");
+            return;
+        }
+
+        const first = toc.toc[0];
+        await rendition.display(first.href);
+        setStatus("Zum ersten Kapitel gesprungen.");
+    });
+
+    nextBtn.addEventListener("click", goNext);
+    prevBtn.addEventListener("click", goPrev);
+
+    window.addEventListener("keydown", (event) => {
+        if (!rendition) return;
+        if (event.key === "ArrowRight") goNext();
+        if (event.key === "ArrowLeft") goPrev();
+    });
 };
